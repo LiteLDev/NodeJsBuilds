@@ -1,0 +1,323 @@
+diff --git a/node.gyp b/node.gyp
+index 6b3a6d991d..fd96eb93f3 100644
+--- a/node.gyp
++++ b/node.gyp
+@@ -137,318 +137,6 @@
+         }],
+       ]
+     },
+-    {
+-      'target_name': '<(node_core_target_name)',
+-      'type': 'executable',
+-
+-      'defines': [
+-        'NODE_ARCH="<(target_arch)"',
+-        'NODE_PLATFORM="<(OS)"',
+-        'NODE_WANT_INTERNALS=1',
+-      ],
+-
+-      'includes': [
+-        'node.gypi'
+-      ],
+-
+-      'include_dirs': [
+-        'src',
+-        'deps/v8/include'
+-      ],
+-
+-      'sources': [
+-        'src/node_main.cc'
+-      ],
+-
+-      'dependencies': [
+-        'deps/histogram/histogram.gyp:histogram',
+-        'deps/uvwasi/uvwasi.gyp:uvwasi',
+-      ],
+-
+-      'msvs_settings': {
+-        'VCLinkerTool': {
+-          'GenerateMapFile': 'true', # /MAP
+-          'MapExports': 'true', # /MAPINFO:EXPORTS
+-          'RandomizedBaseAddress': 2, # enable ASLR
+-          'DataExecutionPrevention': 2, # enable DEP
+-          'AllowIsolation': 'true',
+-          # By default, the MSVC linker only reserves 1 MiB of stack memory for
+-          # each thread, whereas other platforms typically allow much larger
+-          # stack memory sections. We raise the limit to make it more consistent
+-          # across platforms and to support the few use cases that require large
+-          # amounts of stack memory, without having to modify the node binary.
+-          'StackReserveSize': 0x800000,
+-        },
+-      },
+-
+-      # - "C4244: conversion from 'type1' to 'type2', possible loss of data"
+-      #   Ususaly safe. Disable for `dep`, enable for `src`
+-      'msvs_disabled_warnings!': [4244],
+-
+-      'conditions': [
+-        [ 'error_on_warn=="true"', {
+-          'cflags': ['-Werror'],
+-          'xcode_settings': {
+-            'WARNING_CFLAGS': [ '-Werror' ],
+-          },
+-        }],
+-        [ 'node_intermediate_lib_type=="static_library" and '
+-            'node_shared=="true" and OS=="aix"', {
+-          # For AIX, shared lib is linked by static lib and .exp. In the
+-          # case here, the executable needs to link to shared lib.
+-          # Therefore, use 'node_aix_shared' target to generate the
+-          # shared lib and then executable.
+-          'dependencies': [ 'node_aix_shared' ],
+-        }, {
+-          'dependencies': [ '<(node_lib_target_name)' ],
+-          'conditions': [
+-            ['OS=="win" and node_shared=="true"', {
+-              'dependencies': ['generate_node_def'],
+-              'msvs_settings': {
+-                'VCLinkerTool': {
+-                  'ModuleDefinitionFile': '<(PRODUCT_DIR)/<(node_core_target_name).def',
+-                },
+-              },
+-            }],
+-          ],
+-        }],
+-        [ 'node_intermediate_lib_type=="static_library" and node_shared=="false"', {
+-          'xcode_settings': {
+-            'OTHER_LDFLAGS': [
+-              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+-              '-Wl,-force_load,<(PRODUCT_DIR)/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
+-            ],
+-          },
+-          'msvs_settings': {
+-            'VCLinkerTool': {
+-              'AdditionalOptions': [
+-                '/WHOLEARCHIVE:<(node_lib_target_name)<(STATIC_LIB_SUFFIX)',
+-                '/WHOLEARCHIVE:<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
+-              ],
+-            },
+-          },
+-          'conditions': [
+-            ['OS != "aix" and OS != "mac"', {
+-              'ldflags': [
+-                '-Wl,--whole-archive',
+-                '<(obj_dir)/<(STATIC_LIB_PREFIX)<(node_core_target_name)<(STATIC_LIB_SUFFIX)',
+-                '<(obj_dir)/tools/v8_gypfiles/<(STATIC_LIB_PREFIX)v8_base_without_compiler<(STATIC_LIB_SUFFIX)',
+-                '-Wl,--no-whole-archive',
+-              ],
+-            }],
+-            [ 'OS=="win"', {
+-              'sources': [ 'src/res/node.rc' ],
+-              'conditions': [
+-                [ 'node_use_etw=="true"', {
+-                  'sources': [
+-                    'tools/msvs/genfiles/node_etw_provider.rc'
+-                  ],
+-                }],
+-              ],
+-            }],
+-          ],
+-        }],
+-        [ 'node_shared=="true"', {
+-          'xcode_settings': {
+-            'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
+-          },
+-          'conditions': [
+-            ['OS=="linux"', {
+-               'ldflags': [
+-                 '-Wl,-rpath,\\$$ORIGIN/../lib'
+-               ],
+-            }],
+-          ],
+-        }],
+-        [ 'enable_lto=="true"', {
+-          'xcode_settings': {
+-            'OTHER_LDFLAGS': [
+-              # man ld -export_dynamic:
+-              # Preserves all global symbols in main executables during LTO.
+-              # Without this option, Link Time Optimization is allowed to
+-              # inline and remove global functions. This option is used when
+-              # a main executable may load a plug-in which requires certain
+-              # symbols from the main executable.
+-              '-Wl,-export_dynamic',
+-            ],
+-          },
+-        }],
+-        ['OS=="win"', {
+-          'libraries': [
+-            'Dbghelp.lib',
+-            'winmm.lib',
+-            'Ws2_32.lib',
+-          ],
+-        }],
+-        ['node_with_ltcg=="true"', {
+-          'msvs_settings': {
+-            'VCCLCompilerTool': {
+-              'WholeProgramOptimization': 'true'   # /GL, whole program optimization, needed for LTCG
+-            },
+-            'VCLibrarianTool': {
+-              'AdditionalOptions': [
+-                '/LTCG:INCREMENTAL',               # link time code generation
+-              ],
+-            },
+-            'VCLinkerTool': {
+-              'OptimizeReferences': 2,             # /OPT:REF
+-              'EnableCOMDATFolding': 2,            # /OPT:ICF
+-              'LinkIncremental': 1,                # disable incremental linking
+-              'AdditionalOptions': [
+-                '/LTCG:INCREMENTAL',               # incremental link-time code generation
+-              ],
+-            }
+-          }
+-        }, {
+-          'msvs_settings': {
+-            'VCCLCompilerTool': {
+-              'WholeProgramOptimization': 'false'
+-            },
+-            'VCLinkerTool': {
+-              'LinkIncremental': 2                 # enable incremental linking
+-            },
+-          },
+-         }],
+-         ['node_use_node_snapshot=="true"', {
+-          'dependencies': [
+-            'node_mksnapshot',
+-          ],
+-          'conditions': [
+-            ['node_snapshot_main!=""', {
+-              'actions': [
+-                {
+-                  'action_name': 'node_mksnapshot',
+-                  'process_outputs_as_sources': 1,
+-                  'inputs': [
+-                    '<(node_mksnapshot_exec)',
+-                    '<(node_snapshot_main)',
+-                  ],
+-                  'outputs': [
+-                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+-                  ],
+-                  'action': [
+-                    '<(node_mksnapshot_exec)',
+-                    '--build-snapshot',
+-                    '<(node_snapshot_main)',
+-                    '<@(_outputs)',
+-                  ],
+-                },
+-              ],
+-            }, {
+-              'actions': [
+-                {
+-                  'action_name': 'node_mksnapshot',
+-                  'process_outputs_as_sources': 1,
+-                  'inputs': [
+-                    '<(node_mksnapshot_exec)',
+-                  ],
+-                  'outputs': [
+-                    '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
+-                  ],
+-                  'action': [
+-                    '<@(_inputs)',
+-                    '<@(_outputs)',
+-                  ],
+-                },
+-              ],
+-            }],
+-          ],
+-          }, {
+-          'sources': [
+-            'src/node_snapshot_stub.cc'
+-          ],
+-        }],
+-        [ 'OS in "linux freebsd" and '
+-          'target_arch=="x64"', {
+-          'dependencies': [ 'node_text_start' ],
+-          'ldflags+': [
+-            '<(obj_dir)/<(node_text_start_object_path)'
+-          ]
+-        }],
+-
+-        ['node_fipsinstall=="true"', {
+-          'variables': {
+-            'openssl-cli': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)openssl-cli<(EXECUTABLE_SUFFIX)',
+-            'provider_name': 'libopenssl-fipsmodule',
+-            'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
+-            'conditions': [
+-              ['GENERATOR == "ninja"', {
+-	        'fipsmodule_internal': '<(PRODUCT_DIR)/lib/<(provider_name).so',
+-                'fipsmodule': '<(PRODUCT_DIR)/obj/lib/openssl-modules/fips.so',
+-                'fipsconfig': '<(PRODUCT_DIR)/obj/lib/fipsmodule.cnf',
+-                'opensslconfig_internal': '<(PRODUCT_DIR)/obj/lib/openssl.cnf',
+-             }, {
+-	        'fipsmodule_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/<(provider_name).so',
+-                'fipsmodule': '<(PRODUCT_DIR)/obj.target/deps/openssl/lib/openssl-modules/fips.so',
+-                'fipsconfig': '<(PRODUCT_DIR)/obj.target/deps/openssl/fipsmodule.cnf',
+-                'opensslconfig_internal': '<(PRODUCT_DIR)/obj.target/deps/openssl/openssl.cnf',
+-             }],
+-            ],
+-          },
+-          'actions': [
+-            {
+-              'action_name': 'fipsinstall',
+-              'process_outputs_as_sources': 1,
+-              'inputs': [
+-                '<(fipsmodule_internal)',
+-              ],
+-              'outputs': [
+-                '<(fipsconfig)',
+-              ],
+-              'action': [
+-                '<(openssl-cli)', 'fipsinstall',
+-                '-provider_name', '<(provider_name)',
+-                '-module', '<(fipsmodule_internal)',
+-                '-out', '<(fipsconfig)',
+-                #'-quiet',
+-              ],
+-            },
+-            {
+-              'action_name': 'copy_fips_module',
+-              'inputs': [
+-                '<(fipsmodule_internal)',
+-              ],
+-              'outputs': [
+-                '<(fipsmodule)',
+-              ],
+-              'action': [
+-                'python', 'tools/copyfile.py',
+-                '<(fipsmodule_internal)',
+-                '<(fipsmodule)',
+-              ],
+-            },
+-            {
+-              'action_name': 'copy_openssl_cnf_and_include_fips_cnf',
+-              'inputs': [ '<(opensslconfig)', ],
+-              'outputs': [ '<(opensslconfig_internal)', ],
+-              'action': [
+-                'python', 'tools/enable_fips_include.py',
+-                '<(opensslconfig)',
+-                '<(opensslconfig_internal)',
+-                '<(fipsconfig)',
+-              ],
+-            },
+-          ],
+-         }, {
+-           'variables': {
+-              'opensslconfig_internal': '<(obj_dir)/deps/openssl/openssl.cnf',
+-              'opensslconfig': './deps/openssl/nodejs-openssl.cnf',
+-           },
+-           'actions': [
+-             {
+-               'action_name': 'reset_openssl_cnf',
+-               'inputs': [ '<(opensslconfig)', ],
+-               'outputs': [ '<(opensslconfig_internal)', ],
+-               'action': [
+-                 'python', 'tools/copyfile.py',
+-                 '<(opensslconfig)',
+-                 '<(opensslconfig_internal)',
+-               ],
+-             },
+-           ],
+-         }],
+-      ],
+-    }, # node_core_target_name
+     {
+       'target_name': '<(node_lib_target_name)',
+       'type': '<(node_intermediate_lib_type)',
