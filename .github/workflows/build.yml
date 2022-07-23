@@ -1,0 +1,88 @@
+name: Build LibNode
+
+on:
+  workflow_dispatch
+
+env:
+  NodeVersion: v16.16.0
+  PythonVersion: '3.10'
+
+jobs:
+  build:
+    runs-on: windows-2019
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          repository: 'nodejs/node'
+          ref: ${{env.NodeVersion}}
+
+      - name: Apply Patch
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: |
+          curl -L -o patch_001.patch https://github.com/LiteLDev/NodeJsBuilds/raw/main/patch/001_vcbuild_embedd_fix_export.patch
+          git apply patch_001.patch
+        shell: bash
+
+      - name: Setup MSBUILD
+        uses: microsoft/setup-msbuild@v1.1
+      
+      - name: Setup Python ${{env.PythonVersion}}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{env.PythonVersion}}
+
+      - name: Install NASM
+        run: choco install nasm
+
+      - name: Environment Information
+        run: npx envinfo
+
+      - name: Build
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        id: build
+        run: |
+          vcbuild.bat dll vs2019 release
+        shell: cmd
+
+      - name: Clean Up
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: |
+          cd out/Release
+          rm -rf obj
+          mkdir libnode
+          cp -a libnode.* ./libnode
+        shell: bash
+
+      - name: Upload Node Dependency
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: NodeDeps
+          path: ${{ github.workspace }}/out/Release/lib
+
+      - name: Upload LibNode
+        uses: actions/upload-artifact@v3.1.0
+        with:
+          name: LibNode
+          path: ${{ github.workspace }}/out/Release/libnode
+          
+      - name: Pack Release
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: |
+          cd out/Release
+          cd lib
+          7z a -y -tzip -mmt ../../nodedep.zip *
+          cd ../libnode
+          7z a -y -tzip -mmt ../../libnode.zip *
+          cd ..
+          ls ../../
+        shell: bash
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            libnode.zip
+            nodedep.zip
