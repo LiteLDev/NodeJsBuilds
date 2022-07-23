@@ -1,0 +1,40 @@
+diff --git a/node.gyp b/node.gyp
+index 74e9f9cc2e..975e3b4fac 100644
+--- a/node.gyp
++++ b/node.gyp
+@@ -641,6 +641,7 @@
+             'Dbghelp',
+             'Psapi',
+             'Ws2_32',
++            'Winmm',
+           ],
+         }],
+         [ 'node_use_etw=="true"', {
+diff --git a/tools/v8_gypfiles/v8.gyp b/tools/v8_gypfiles/v8.gyp
+index 39b96803c7..bcd66b9db0 100644
+--- a/tools/v8_gypfiles/v8.gyp
++++ b/tools/v8_gypfiles/v8.gyp
+@@ -1277,6 +1277,10 @@
+       'dependencies': [
+         'v8_libbase',
+       ],
++      'direct_dependent_settings': {
++        'defines': ['USING_V8_PLATFORM_SHARED'],
++      },
++      'defines': ['BUILDING_V8_PLATFORM_SHARED'],
+       'sources': [
+         '<(V8_ROOT)/base/trace_event/common/trace_event_common.h',
+         '<(V8_ROOT)/include/libplatform/libplatform-export.h',
+@@ -1305,12 +1309,6 @@
+         '<(V8_ROOT)/src/libplatform/worker-thread.h',
+       ],
+       'conditions': [
+-        ['component=="shared_library"', {
+-          'direct_dependent_settings': {
+-            'defines': ['USING_V8_PLATFORM_SHARED'],
+-          },
+-          'defines': ['BUILDING_V8_PLATFORM_SHARED'],
+-        }],
+         ['v8_use_perfetto==1', {
+           'sources!': [
+             '<(V8_ROOT)/base/trace_event/common/trace_event_common.h',
