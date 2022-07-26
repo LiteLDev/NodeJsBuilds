@@ -72,9 +72,9 @@ jobs:
         run: |
           cd out/Release
           cd lib
-          7z a -y -tzip -mmt ../../nodedep.zip *
+          7z a -y -tzip -mmt ../../../nodedep.zip *
           cd ../libnode
-          7z a -y -tzip -mmt ../../libnode.zip *
+          7z a -y -tzip -mmt ../../../libnode.zip *
           cd ..
           ls ../../
         shell: bash
